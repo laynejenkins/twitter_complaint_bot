@@ -1,55 +1,64 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import ElementClickInterceptedException
 import time
 
-PROMISED_DOWN = 150
-PROMISED_UP = 10
-INTERNET_PROVIDER = "Whichever ISP you currently use"
-CHROME_DRIVER_PATH = "YOUR CHROME DRIVER PATH"
-TWITTER_EMAIL = "YOUR TWITTER EMAIL"
-TWITTER_PASSWORD = "YOUR TWITTER PASSWORD"
+CHROME_DRIVER_PATH = YOUR CHROME DRIVER PATH
+SIMILAR_ACCOUNT = "an account whose followers you want to follow"
+USERNAME = "YOUR INSTAGRAM USERNAME"
+PASSWORD = "YOUR INSTAGRAM PASSWORD"
 
 
-class InternetSpeedTwitterBot:
-    def __init__(self, driver_path):
-        self.driver = webdriver.Chrome(executable_path=driver_path)
-        self.up = 0
-        self.down = 0
+class InstaFollower:
 
-    def get_internet_speed(self):
-        self.driver.get("https://www.speedtest.net/")
-        go_button = self.driver.find_element_by_css_selector(".start-button a")
-        go_button.click()
-        time.sleep(60)
-        self.up = self.driver.find_element_by_xpath(
-            '//*[@id="container"]/div/div[3]/div/div/div/div[2]/div[3]/div[3]/div/div[3]/div/div/div[2]/div[1]/div[2]/div/div[2]/span').text
-        self.down = self.driver.find_element_by_xpath(
-            '//*[@id="container"]/div/div[3]/div/div/div/div[2]/div[3]/div[3]/div/div[3]/div/div/div[2]/div[1]/div[3]/div/div[2]/span').text
+    def __init__(self, path):
+        self.driver = webdriver.Chrome(executable_path=path)
 
-    def karen_mode_activate(self):
-        self.driver.get("https://twitter.com/login")
-        time.sleep(2)
-        email = self.driver.find_element_by_xpath(
-            '//*[@id="react-root"]/div/div/div[2]/main/div/div/div[1]/form/div/div[1]/label/div/div[2]/div/input')
-        password = self.driver.find_element_by_xpath(
-            '//*[@id="react-root"]/div/div/div[2]/main/div/div/div[1]/form/div/div[2]/label/div/div[2]/div/input')
-        email.send_keys(TWITTER_EMAIL)
-        password.send_keys(TWITTER_PASSWORD)
+    def login(self):
+        self.driver.get("https://www.instagram.com/accounts/login/")
+        time.sleep(5)
+
+        username = self.driver.find_element_by_name("username")
+        password = self.driver.find_element_by_name("password")
+
+        username.send_keys(USERNAME)
+        password.send_keys(PASSWORD)
+
         time.sleep(2)
         password.send_keys(Keys.ENTER)
+
+    def find_followers(self):
+        '''Pulls up the list of followers for a target account'''
         time.sleep(5)
-        tweet_compose = self.driver.find_element_by_xpath(
-            '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div/div/div[2]/div/div[2]/div[1]/div/div/div/div[2]/div[1]/div/div/div/div/div/div/div/div/div/div[1]/div/div/div/div[2]/div/div/div/div')
-        tweet = f"Hey {INTERNET_PROVIDER}, why is my internet speed {self.down}down/{self.up}up when I pay for {PROMISED_DOWN}down/{PROMISED_UP}up?"
-        tweet_compose.send_keys(tweet)
-        time.sleep(3)
-        tweet_button = self.driver.find_element_by_xpath(
-            '//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div/div/div[2]/div/div[2]/div[1]/div/div/div/div[2]/div[4]/div/div/div[2]/div[3]')
-        tweet_button.click()
+        self.driver.get(f"https://www.instagram.com/{SIMILAR_ACCOUNT}")
+
         time.sleep(2)
-        self.driver.quit()
+        followers = self.driver.find_element_by_xpath(
+            '//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a')
+        followers.click()
+
+        time.sleep(2)
+        modal = self.driver.find_element_by_xpath(
+            '/html/body/div[4]/div/div/div[2]')
+        for i in range(10):
+            self.driver.execute_script(
+                "arguments[0].scrollTop = arguments[0].scrollHeight", modal)
+            time.sleep(2)
+
+    def follow(self):
+        '''Clicks follow for each follower on list. Added exemption for popups.'''
+        all_buttons = self.driver.find_elements_by_css_selector("li button")
+        for button in all_buttons:
+            try:
+                button.click()
+                time.sleep(1)
+            except ElementClickInterceptedException:
+                cancel_button = self.driver.find_element_by_xpath(
+                    '/html/body/div[5]/div/div/div/div[3]/button[2]')
+                cancel_button.click()
 
 
-bot = InternetSpeedTwitterBot(CHROME_DRIVER_PATH)
-bot.get_internet_speed()
-bot.karen_mode_activate()
+bot = InstaFollower(CHROME_DRIVER_PATH)
+bot.login()
+bot.find_followers()
+bot.follow()
